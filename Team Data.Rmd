@@ -1,0 +1,27 @@
+---
+title: "Team Data"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+HSAC_MLB_payroll_data <- read_csv("HSAC - MLB payroll data.csv")
+
+HSAC_MLB_payroll_data$`Total Payroll` <- sub('.', '', HSAC_MLB_payroll_data$`Total Payroll`)
+HSAC_MLB_payroll_data$`Total Payroll` <- as.integer(gsub(',', '', HSAC_MLB_payroll_data$`Total Payroll`))
+
+plot(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`)
+summary(lm(HSAC_MLB_payroll_data$`Win %`~HSAC_MLB_payroll_data$`Total Payroll`))
+plot(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`)
+cor(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`, use="pairwise.complete.obs")
+
+cor(HSAC_MLB_payroll_data$Rank, HSAC_MLB_payroll_data$`Win %`, use="pairwise.complete.obs")
+
+```
+
+```{r}
+mlb_players <- read_csv("MLB Player Salaries.csv")
+
+team_sums <- read
+```
+
