@@ -60,7 +60,7 @@ for(i in 1:31297) {
 
 hhi_sums <- mlb_players %>% 
   group_by(Team, Year) %>%
-  summarise(total_salary=sum(hhi_i))
+  summarise(hhi=sum(hhi_i))
 
 
 ```
