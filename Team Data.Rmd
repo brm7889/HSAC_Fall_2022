@@ -44,5 +44,24 @@ sums_sums <- merge(team_sums, HSAC_MLB_payroll_data, by = c("Team", "Year"), all
 
 plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
 sums_sums$diff <- sums_sums$`Total Payroll` - sums_sums$total_salary
+
+#sums_sums <- sums_sums[-c(169), ]
+hist(sums_sums$diff)
+plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
+
+mlb_players$hhi_i <- 0
+
+for(i in 1:31297) {
+  team <- mlb_players[[i, 14]]
+  year <- mlb_players[[i, 13]]
+  mlb_players[i, 17] <- (mlb_players[[i, 10]] / team_sums[team_sums$Team == team & team_sums$Year == year, 3]) ^ 2
+  
+}
+
+hhi_sums <- mlb_players %>% 
+  group_by(Team, Year) %>%
+  summarise(total_salary=sum(hhi_i))
+
+
 ```
 
