@@ -17,11 +17,32 @@ cor(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`, use="p
 
 cor(HSAC_MLB_payroll_data$Rank, HSAC_MLB_payroll_data$`Win %`, use="pairwise.complete.obs")
 
+
+
 ```
 
 ```{r}
-mlb_players <- read_csv("MLB Player Salaries.csv")
+mlb_players <- read_csv("MLB Player Salaries 10-24.csv")
 
-team_sums <- read
+mlb_players$`Adj. Salary` <- gsub('\\$', '', mlb_players$`Adj. Salary`)
+mlb_players$`Adj. Salary` <- gsub(',', '', mlb_players$`Adj. Salary`)
+mlb_players$`Adj. Salary` <- gsub('-', '0', mlb_players$`Adj. Salary`)
+
+mlb_players$`Adj. Salary`<- as.integer(mlb_players$`Adj. Salary`)
+
+team_sums <- mlb_players %>% 
+  group_by(Team, Year) %>%
+  summarise(total_salary=sum(`Adj. Salary`))
+
+
+HSAC_MLB_payroll_data$Team <- gsub("St. Louis Cardinals", "St Louis Cardinals", HSAC_MLB_payroll_data$Team)
+HSAC_MLB_payroll_data$Team <- gsub("Cleveland Indians", "Cleveland Guardians", HSAC_MLB_payroll_data$Team)
+HSAC_MLB_payroll_data$Team <- gsub("Florida Marlins", "Miami Marlins", HSAC_MLB_payroll_data$Team)
+
+
+sums_sums <- merge(team_sums, HSAC_MLB_payroll_data, by = c("Team", "Year"), all = TRUE)
+
+plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
+sums_sums$diff <- sums_sums$`Total Payroll` - sums_sums$total_salary
 ```
 
