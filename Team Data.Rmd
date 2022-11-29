@@ -47,14 +47,15 @@ sums_sums$diff <- sums_sums$`Total Payroll` - sums_sums$total_salary
 
 #sums_sums <- sums_sums[-c(169), ]
 hist(sums_sums$diff)
+summary(sums_sums$diff)
 plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
 
 mlb_players$hhi_i <- 0
 
-for(i in 1:31297) {
-  team <- mlb_players[[i, 14]]
-  year <- mlb_players[[i, 13]]
-  mlb_players[i, 17] <- (mlb_players[[i, 10]] / team_sums[team_sums$Team == team & team_sums$Year == year, 3]) ^ 2
+for(i in 1:nrow(mlb_players)) {
+  team <- mlb_players[[i, "Team"]]
+  year <- mlb_players[[i, "Year"]]
+  mlb_players[i, "hhi_i"] <- (mlb_players[[i, "Adj. Salary"]] / team_sums[team_sums$Team == team & team_sums$Year == year, "total_salary"]) ^ 2
   
 }
 
@@ -62,16 +63,72 @@ hhi_sums <- mlb_players %>%
   group_by(Team, Year) %>%
   summarise(hhi=sum(hhi_i))
 
+#write.csv(hhi_sums, "hhi")
+#write.csv(HSAC_MLB_payroll_data, "test")
+
+hhi_sums_w <- merge(hhi_sums, HSAC_MLB_payroll_data[, c(1,3,4)], by = c("Team", "Year"), all=TRUE) 
+hhi_sums_w <- merge(hhi_sums_w, team_sums[, c(1,2,3)], by = c("Team", "Year"), all=TRUE) 
+
+# WILL FIX: ADD MIAMI MARLINS WINNING PERCENTAGE: 72/162
+# DO WE WANT TO INCLUDE DEFERRED SALARIES?
+# REMOVE 2020?
+hhi_sums_w[169, "Win %"] <- 72/162
+
+# Winning percentage vs HHI
+plot(hhi_sums_w$hhi, hhi_sums_w$`Win %`)
+abline(lm(`Win %` ~ hhi, data=hhi_sums_w))
+summary(lm(`Win %` ~ hhi, data=hhi_sums_w))
+summary(lm(`Win %` ~ hhi+ total_salary, data=hhi_sums_w))
+
+
+# Winning percentage vs salary
+plot(hhi_sums_w$total_salary, hhi_sums_w$`Win %`)
+abline(lm(`Win %` ~total_salary, data=hhi_sums_w))
+cor(hhi_sums_w$total_salary, hhi_sums_w$`Win %`, use="pairwise.complete.obs")
+summary(lm(`Win %` ~total_salary, data=hhi_sums_w))
+```
+
+
+
+```{r}
+nba_players <- read_csv("NBA Player Salaries 11-14.csv")
+
+nba_players$`Cap Figure` <- gsub('\\$', '', nba_players$`Cap Figure`)
+nba_players$`Cap Figure` <- gsub(',', '', nba_players$`Cap Figure`)
+nba_players$`Cap Figure` <- gsub('-', '0', nba_players$`Cap Figure`)
+
+nba_players$`Cap Figure`<- as.integer(nba_players$`Cap Figure`)
+
+nba_team_sums <- nba_players %>% 
+  group_by(Team, Year) %>%
+  summarise(total_salary=sum(`Cap Figure`, na.rm=TRUE))
+
+nba_players$hhi_i <- 0
+
+for(i in 1:nrow(nba_players)) {
+  team <- nba_players[[i, "Team"]]
+  year <- nba_players[[i, "Year"]]
+  nba_players[i, "hhi_i"] <- (nba_players[[i, "Cap Figure"]] / nba_team_sums[nba_team_sums$Team == team & nba_team_sums$Year == year, "total_salary"]) ^ 2
+  
+}
+
+nba_hhi_sums <- nba_players %>% 
+  group_by(Team, Year) %>%
+  summarise(hhi=sum(hhi_i, na.rm=TRUE))
+
 write.csv(hhi_sums, "hhi")
-write.csv(HSAC_MLB_payroll_data, "test")
+
 
 hhi_sums_w <- merge(hhi_sums, HSAC_MLB_payroll_data[, c(1,3,4)], by = c("Team", "Year"), all=TRUE) 
 
-# WILL FIX: Remove marlins 2011
+
 hhi_sums_w <- hhi_sums_w[-c(169),]
 
 plot(hhi_sums_w$hhi, hhi_sums_w$`Win %`)
 abline(lm(`Win %` ~ hhi, data=hhi_sums_w))
 summary(lm(`Win %` ~ hhi, data=hhi_sums_w))
+
+# DO WE WANT TO INCLUDE CAP HOLDS?
+
 ```
 
