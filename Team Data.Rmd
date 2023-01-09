@@ -4,94 +4,106 @@ output: html_document
 ---
 
 ```{r}
+# Load packages
 library(tidyverse)
+library(readxl)
+library(sandwich)
+library(lmtest)
+
+# Load MLB data
+mlb_players <- read_csv("MLB Player Salaries 10-24.csv")
 HSAC_MLB_payroll_data <- read_csv("HSAC - MLB payroll data.csv")
 
-HSAC_MLB_payroll_data$`Total Payroll` <- sub('.', '', HSAC_MLB_payroll_data$`Total Payroll`)
-HSAC_MLB_payroll_data$`Total Payroll` <- as.integer(gsub(',', '', HSAC_MLB_payroll_data$`Total Payroll`))
-
-plot(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`)
-summary(lm(HSAC_MLB_payroll_data$`Win %`~HSAC_MLB_payroll_data$`Total Payroll`))
-plot(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`)
-cor(HSAC_MLB_payroll_data$`Total Payroll`, HSAC_MLB_payroll_data$`Win %`, use="pairwise.complete.obs")
-
-cor(HSAC_MLB_payroll_data$Rank, HSAC_MLB_payroll_data$`Win %`, use="pairwise.complete.obs")
-
-
-
-```
-
-```{r}
-mlb_players <- read_csv("MLB Player Salaries 10-24.csv")
-
+# Clean payroll data
 mlb_players$`Adj. Salary` <- gsub('\\$', '', mlb_players$`Adj. Salary`)
 mlb_players$`Adj. Salary` <- gsub(',', '', mlb_players$`Adj. Salary`)
 mlb_players$`Adj. Salary` <- gsub('-', '0', mlb_players$`Adj. Salary`)
-
 mlb_players$`Adj. Salary`<- as.integer(mlb_players$`Adj. Salary`)
 
-team_sums <- mlb_players %>% 
-  group_by(Team, Year) %>%
-  summarise(total_salary=sum(`Adj. Salary`))
-
-
+# Keep team names consistent
 HSAC_MLB_payroll_data$Team <- gsub("St. Louis Cardinals", "St Louis Cardinals", HSAC_MLB_payroll_data$Team)
 HSAC_MLB_payroll_data$Team <- gsub("Cleveland Indians", "Cleveland Guardians", HSAC_MLB_payroll_data$Team)
 HSAC_MLB_payroll_data$Team <- gsub("Florida Marlins", "Miami Marlins", HSAC_MLB_payroll_data$Team)
 
+# Sum salary by team-year
+mlb_team_sums <- mlb_players %>% 
+  group_by(Team, Year) %>%
+  summarise(total_salary=sum(`Adj. Salary`))
 
-sums_sums <- merge(team_sums, HSAC_MLB_payroll_data, by = c("Team", "Year"), all = TRUE)
-
-plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
-sums_sums$diff <- sums_sums$`Total Payroll` - sums_sums$total_salary
-
-#sums_sums <- sums_sums[-c(169), ]
-hist(sums_sums$diff)
-summary(sums_sums$diff)
-plot(sums_sums$total_salary, sums_sums$`Total Payroll`)
-
+# Calculate HHI
 mlb_players$hhi_i <- 0
 
 for(i in 1:nrow(mlb_players)) {
   team <- mlb_players[[i, "Team"]]
   year <- mlb_players[[i, "Year"]]
-  mlb_players[i, "hhi_i"] <- (mlb_players[[i, "Adj. Salary"]] / team_sums[team_sums$Team == team & team_sums$Year == year, "total_salary"]) ^ 2
+  mlb_players[i, "hhi_i"] <- (mlb_players[[i, "Adj. Salary"]] / mlb_team_sums[mlb_team_sums$Team == team & mlb_team_sums$Year == year, "total_salary"]) ^ 2
   
 }
 
-hhi_sums <- mlb_players %>% 
+mlb_hhi_sums <- mlb_players %>% 
   group_by(Team, Year) %>%
   summarise(hhi=sum(hhi_i))
 
-#write.csv(hhi_sums, "hhi")
-#write.csv(HSAC_MLB_payroll_data, "test")
-
-hhi_sums_w <- merge(hhi_sums, HSAC_MLB_payroll_data[, c(1,3,4)], by = c("Team", "Year"), all=TRUE) 
-hhi_sums_w <- merge(hhi_sums_w, team_sums[, c(1,2,3)], by = c("Team", "Year"), all=TRUE) 
+# Combine datasets
+mlb_hhi_sums_w <- merge(mlb_hhi_sums, HSAC_MLB_payroll_data[, c(1,3,4)], by = c("Team", "Year"), all=TRUE) 
+mlb_hhi_sums_w <- merge(mlb_hhi_sums_w, mlb_team_sums[, c(1,2,3)], by = c("Team", "Year"), all=TRUE) 
 
 # WILL FIX: ADD MIAMI MARLINS WINNING PERCENTAGE: 72/162
 # DO WE WANT TO INCLUDE DEFERRED SALARIES?
 # REMOVE 2020?
-hhi_sums_w[169, "Win %"] <- 72/162
+mlb_hhi_sums_w[169, "Win %"] <- 72/162
+
+# DROP 2020 AND 2011??
 
 # Winning percentage vs HHI
-plot(hhi_sums_w$hhi, hhi_sums_w$`Win %`)
-abline(lm(`Win %` ~ hhi, data=hhi_sums_w))
-summary(lm(`Win %` ~ hhi, data=hhi_sums_w))
-summary(lm(`Win %` ~ hhi+ total_salary, data=hhi_sums_w))
-
+plot(mlb_hhi_sums_w$hhi, mlb_hhi_sums_w$`Win %`)
+abline(lm(`Win %` ~ hhi, data=mlb_hhi_sums_w))
+summary(lm(`Win %` ~ hhi, data=mlb_hhi_sums_w))
 
 # Winning percentage vs salary
-plot(hhi_sums_w$total_salary, hhi_sums_w$`Win %`)
-abline(lm(`Win %` ~total_salary, data=hhi_sums_w))
-cor(hhi_sums_w$total_salary, hhi_sums_w$`Win %`, use="pairwise.complete.obs")
-summary(lm(`Win %` ~total_salary, data=hhi_sums_w))
+plot(mlb_hhi_sums_w$total_salary, mlb_hhi_sums_w$`Win %`)
+abline(lm(`Win %` ~total_salary, data=mlb_hhi_sums_w))
+cor(mlb_hhi_sums_w$total_salary, mlb_hhi_sums_w$`Win %`, use="pairwise.complete.obs")
+summary(lm(`Win %` ~total_salary, data=mlb_hhi_sums_w))
+
+# Winning percentage vs HHI and salary
+summary(lm(`Win %` ~ hhi+ total_salary, data=mlb_hhi_sums_w))
+
+# Create variable for salary as percent of league average
+mlb_hhi_sums_w <- mlb_hhi_sums_w %>% 
+  group_by(Year) %>% 
+  mutate(avg_salary = mean(total_salary))
+
+mlb_hhi_sums_w$total_salary_relative <- mlb_hhi_sums_w$total_salary / mlb_hhi_sums_w$avg_salary * 100
+
+plot(mlb_hhi_sums_w$total_salary_relative, mlb_hhi_sums_w$`Win %`)
+abline(lm(`Win %` ~ total_salary_relative, data=mlb_hhi_sums_w))
+summary(lm(`Win %` ~ total_salary_relative, data=mlb_hhi_sums_w))
+
+# Winning percentage vs HHI and relative salary 
+mlb_final_lm <- lm(`Win %` ~ total_salary_relative + hhi, data=mlb_hhi_sums_w)
+coeftest(mlb_final_lm, vcov = vcovHC(mlb_final_lm, type="HC1"))
+
+plot(mlb_hhi_sums_w$total_salary_relative, mlb_hhi_sums_w$hhi)
+cor(mlb_hhi_sums_w$total_salary_relative, mlb_hhi_sums_w$hhi, use="pairwise.complete.obs")
+
+
+sd(mlb_hhi_sums_w$hhi)
+
 ```
 
 
 
 ```{r}
-nba_players <- read_csv("NBA Player Salaries 11-14.csv")
+library(tidyverse)
+library(readxl)
+library(sandwich)
+library(lmtest)
+
+nba_records <- read_excel("NBA_W_L.xlsx")
+
+
+nba_players <- read_csv("NBA Player Salaries 1-6.csv")
 
 nba_players$`Cap Figure` <- gsub('\\$', '', nba_players$`Cap Figure`)
 nba_players$`Cap Figure` <- gsub(',', '', nba_players$`Cap Figure`)
@@ -116,19 +128,51 @@ nba_hhi_sums <- nba_players %>%
   group_by(Team, Year) %>%
   summarise(hhi=sum(hhi_i, na.rm=TRUE))
 
-write.csv(hhi_sums, "hhi")
+# write.csv(hhi_sums, "hhi")
 
 
-hhi_sums_w <- merge(hhi_sums, HSAC_MLB_payroll_data[, c(1,3,4)], by = c("Team", "Year"), all=TRUE) 
+nba_hhi_sums_w <- merge(nba_hhi_sums, nba_records, by = c("Team", "Year"), all=TRUE) 
+nba_hhi_sums_w <- merge(nba_hhi_sums_w, nba_team_sums, by = c("Team", "Year"), all=TRUE) 
 
 
-hhi_sums_w <- hhi_sums_w[-c(169),]
 
-plot(hhi_sums_w$hhi, hhi_sums_w$`Win %`)
-abline(lm(`Win %` ~ hhi, data=hhi_sums_w))
-summary(lm(`Win %` ~ hhi, data=hhi_sums_w))
+plot(nba_hhi_sums_w$total_salary, nba_hhi_sums_w$pct)
+abline(lm(pct ~ total_salary, data=nba_hhi_sums_w))
+summary(lm(pct ~ total_salary, data=nba_hhi_sums_w))
 
-# DO WE WANT TO INCLUDE CAP HOLDS?
+
+plot(nba_hhi_sums_w$hhi, nba_hhi_sums_w$pct)
+abline(lm(pct ~ hhi, data=nba_hhi_sums_w))
+summary(lm(pct ~ hhi, data=nba_hhi_sums_w))
+
+
+
+# Maybe salary should be as percent of league average that year, since salaries probs got bigger over time
+nba_hhi_sums_w <- nba_hhi_sums_w %>% 
+  group_by(Year) %>% 
+  mutate(avg_salary = mean(total_salary))
+
+nba_hhi_sums_w$total_salary_relative <- nba_hhi_sums_w$total_salary / nba_hhi_sums_w$avg_salary * 100
+
+plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$pct)
+abline(lm(pct ~ total_salary_relative, data=nba_hhi_sums_w))
+summary(lm(pct ~ total_salary_relative, data=nba_hhi_sums_w))
+
+
+# Winning percentage vs HHI and relative salary 
+nba_final_lm <- lm(pct ~ total_salary_relative + hhi, data=nba_hhi_sums_w)
+coeftest(nba_final_lm, vcov = vcovHC(nba_final_lm, type="HC1"))
+
+sd(nba_hhi_sums_w$hhi)
+
+# There's actually quite a correlation between HHI and payroll in the NBA 
+plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$hhi)
+cor(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$hhi, use="pairwise.complete.obs")
+
+
+
+
+# I think we'll keep amnesties, since we're including retained salaries in MLB
 
 ```
 
