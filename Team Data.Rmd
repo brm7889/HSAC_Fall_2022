@@ -54,7 +54,7 @@ mlb_hhi_sums_w[169, "Win %"] <- 72/162
 # DROP 2020 AND 2011??
 
 # Winning percentage vs HHI
-plot(mlb_hhi_sums_w$hhi, mlb_hhi_sums_w$`Win %`)
+plot(mlb_hhi_sums_w$hhi, mlb_hhi_sums_w$`Win %`, main = "Winning Percentage vs. HHI (MLB)", xlab = "HHI", ylab="Winning Percentage")
 abline(lm(`Win %` ~ hhi, data=mlb_hhi_sums_w))
 summary(lm(`Win %` ~ hhi, data=mlb_hhi_sums_w))
 
@@ -74,7 +74,7 @@ mlb_hhi_sums_w <- mlb_hhi_sums_w %>%
 
 mlb_hhi_sums_w$total_salary_relative <- mlb_hhi_sums_w$total_salary / mlb_hhi_sums_w$avg_salary * 100
 
-plot(mlb_hhi_sums_w$total_salary_relative, mlb_hhi_sums_w$`Win %`)
+plot(mlb_hhi_sums_w$total_salary_relative, mlb_hhi_sums_w$`Win %`, main = "Winning Percentage vs. Relative Salary (MLB)", xlab = "Relative Salary", ylab="Winning Percentage")
 abline(lm(`Win %` ~ total_salary_relative, data=mlb_hhi_sums_w))
 summary(lm(`Win %` ~ total_salary_relative, data=mlb_hhi_sums_w))
 
@@ -141,8 +141,8 @@ abline(lm(pct ~ total_salary, data=nba_hhi_sums_w))
 summary(lm(pct ~ total_salary, data=nba_hhi_sums_w))
 
 
-plot(nba_hhi_sums_w$hhi, nba_hhi_sums_w$pct)
-abline(lm(pct ~ hhi, data=nba_hhi_sums_w))
+plot(nba_hhi_sums_w$hhi, nba_hhi_sums_w$pct, main = "Winning Percentage vs. HHI (NBA)", xlab = "HHI", ylab="Winning Percentage")
+# abline(lm(pct ~ hhi, data=nba_hhi_sums_w))
 summary(lm(pct ~ hhi, data=nba_hhi_sums_w))
 
 
@@ -154,7 +154,7 @@ nba_hhi_sums_w <- nba_hhi_sums_w %>%
 
 nba_hhi_sums_w$total_salary_relative <- nba_hhi_sums_w$total_salary / nba_hhi_sums_w$avg_salary * 100
 
-plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$pct, main = "X", xlab = "Relative Salary")
+plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$pct, main = "Winning Percentage vs. Relative Salary (NBA)", xlab = "Relative Salary", ylab="Winning Percentage")
 abline(lm(pct ~ total_salary_relative, data=nba_hhi_sums_w))
 summary(lm(pct ~ total_salary_relative, data=nba_hhi_sums_w))
 
@@ -166,11 +166,21 @@ coeftest(nba_final_lm, vcov = vcovHC(nba_final_lm, type="HC1"))
 sd(nba_hhi_sums_w$hhi)
 
 # There's actually quite a correlation between HHI and payroll in the NBA 
-plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$hhi)
+plot(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$hhi, main = "HHI vs. Relative Salary (NBA)", xlab = "Relative Salary", ylab="HHI")
 cor(nba_hhi_sums_w$total_salary_relative, nba_hhi_sums_w$hhi, use="pairwise.complete.obs")
 
 
+#### Make a 2d graph of a 3d regression
+m1 <- lm(pct ~ total_salary_relative, data=nba_hhi_sums_w)
+y.uhat.resid <- m1$residuals 
 
+m2 <- lm(hhi ~ total_salary_relative, data=nba_hhi_sums_w)
+x.uhat.resid <- m2$residuals 
+
+plot(x.uhat.resid, y.uhat.resid, xlab = "HHI (residualised)", ylab="Winning Percentage (residualised)", main="Winning Percentage vs. HHI, Controlling for Relative Salary (NBA)")
+abline(lm(y.uhat.resid~x.uhat.resid))
+
+#write.csv(nba_hhi_sums_w, "nba.csv")
 
 # I think we'll keep amnesties, since we're including retained salaries in MLB
 
